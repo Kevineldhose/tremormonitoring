@@ -122,25 +122,51 @@ const chart = new Chart(ctx, {
   }
 });
 
-/* Firebase listener */
+/* ---- Live Tremor Listener ---- */
+
 onValue(ref(database, 'vibration/intensity'), (snapshot) => {
   const value = snapshot.val();
   if (value != null) latestValue = value;
 });
 
-/* Update graph + hourly tracking every 200ms */
+/* ---- Stored Hourly Data Listener ---- */
+
+onValue(ref(database, 'hourly'), (snapshot) => {
+
+  const data = snapshot.val();
+  if (!data) return;
+
+  const hourlyDiv = document.getElementById("hourlyList");
+  hourlyDiv.innerHTML = "";
+
+  Object.keys(data)
+    .sort()
+    .reverse()
+    .forEach(key => {
+
+      const value = data[key];
+
+      const entry = document.createElement("div");
+      entry.innerHTML = key + " → Avg Tremor: " + value.toFixed(3);
+
+      hourlyDiv.appendChild(entry);
+    });
+});
+
+/* ---- Graph Update Every 200ms ---- */
+
 setInterval(() => {
 
   if (latestValue < 0) latestValue = 0;
 
   document.getElementById("freq").innerHTML =
-    "Frequency: " + latestValue.toFixed(2);
+    "Vibration: " + latestValue.toFixed(2);
 
-  if (latestValue > 3) {
-    document.getElementById("alert").innerHTML = "🚨 Tremor Detected!";
+  if (latestValue > 0.7) {
+    document.getElementById("alert").innerHTML = "🚨 Strong Tremor Detected!";
     document.getElementById("alert").style.color = "red";
   } else {
-    document.getElementById("alert").innerHTML = "Normal";
+    document.getElementById("alert").innerHTML = "Status: Normal";
     document.getElementById("alert").style.color = "green";
   }
 
@@ -153,29 +179,6 @@ setInterval(() => {
   }
 
   chart.update();
-
-  /* ---- Hourly Average Calculation ---- */
-
-  let now = new Date();
-  let hour = now.getHours();
-
-  hourlySum += latestValue;
-  hourlyCount++;
-
-  if (hour !== currentHour) {
-    let average = (hourlySum / hourlyCount).toFixed(3);
-
-    let entry = document.createElement("div");
-    entry.innerHTML = 
-      "Hour " + currentHour + ": Avg Tremor = " + average;
-
-    document.getElementById("hourlyList").prepend(entry);
-
-    // Reset for new hour
-    currentHour = hour;
-    hourlySum = 0;
-    hourlyCount = 0;
-  }
 
 }, 200);
 
