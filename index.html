@@ -1,31 +1,53 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tremor Monitor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vibration Monitor</title>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
       margin: 0;
-      padding: 0;
-      font-family: Arial, sans-serif;
+      background: #111;
+      color: white;
+      font-family: Arial;
+      overflow: hidden;
+    }
+
+    #info {
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      z-index: 10;
+    }
+
+    #freq {
+      font-size: 22px;
+      margin-bottom: 5px;
+    }
+
+    #alert {
+      font-size: 18px;
     }
 
     canvas {
       width: 100vw !important;
-      height: 90vh !important;
+      height: 100vh !important;
     }
   </style>
 </head>
 
 <body>
 
+<div id="info">
+  <div id="freq">Vibration: 0</div>
+  <div id="alert">Status: Normal</div>
+</div>
+
 <canvas id="chart"></canvas>
 
 <script type="module">
-
 import { initializeApp } from 
 "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
 
@@ -40,9 +62,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-let latestWave = 0;
+let latestValue = 0;
 let labels = [];
-let dataPoints = [];
+let vibrationData = [];
 
 const ctx = document.getElementById("chart").getContext("2d");
 
@@ -52,11 +74,12 @@ const chart = new Chart(ctx, {
     labels: labels,
     datasets: [{
       label: "Tremor Wave",
-      data: dataPoints,
-      borderColor: "blue",
+      data: vibrationData,
+      borderColor: "lime",
+      borderWidth: 2,
       fill: false,
-      tension: 0.4,      // smooth curve
-      pointRadius: 0
+      tension: 0.4,      // smoother wave
+      pointRadius: 0     // remove dots
     }]
   },
   options: {
@@ -66,11 +89,11 @@ const chart = new Chart(ctx, {
     scales: {
       y: {
         min: 0,
-        max: 0.5   // adjust if wave looks small
+        max: 1      // adjust if wave too small/big
       },
       x: {
         ticks: {
-          autoSkip: true,
+          color: "white",
           maxTicksLimit: 8
         }
       }
@@ -78,29 +101,40 @@ const chart = new Chart(ctx, {
   }
 });
 
-/* Firebase listener */
-onValue(ref(database, 'vibration/wave'), (snapshot) => {
+/* Firebase Listener */
+onValue(ref(database, 'vibration/intensity'), (snapshot) => {
   const value = snapshot.val();
-  if (value != null) latestWave = value;
+  if (value != null) latestValue = Math.abs(value);  // ensure no negative
 });
 
-/* Smooth time-based update */
+/* Smooth Graph Update with Time */
 setInterval(() => {
+
+  document.getElementById("freq").innerHTML =
+    "Vibration : " + latestValue.toFixed(2);
+
+  if (latestValue > 0.7) {
+    document.getElementById("alert").innerHTML = "🚨 TREMOR DETECTED!";
+    document.getElementById("alert").style.color = "red";
+  } else {
+    document.getElementById("alert").innerHTML = "NORMAL";
+    document.getElementById("alert").style.color = "lightgreen";
+  }
 
   const now = new Date();
   const timeLabel = now.toLocaleTimeString();
 
   labels.push(timeLabel);
-  dataPoints.push(latestWave);
+  vibrationData.push(latestValue);
 
   if (labels.length > 150) {
     labels.shift();
-    dataPoints.shift();
+    vibrationData.shift();
   }
 
   chart.update();
 
-}, 50);   // smooth scrolling
+}, 50);   // faster refresh = smoother wave
 
 </script>
 
