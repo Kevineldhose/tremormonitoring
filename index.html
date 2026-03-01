@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tremor Monitor</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    #freq {
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      font-size: 22px;
+      font-weight: bold;
+      background: rgba(255,255,255,0.8);
+      padding: 8px 15px;
+      border-radius: 8px;
+    }
+
+    #alert {
+      position: absolute;
+      top: 60px;
+      left: 20px;
+      font-size: 20px;
+      font-weight: bold;
+      background: rgba(255,255,255,0.8);
+      padding: 8px 15px;
+      border-radius: 8px;
+    }
+
+    canvas {
+      width: 100vw !important;
+      height: 80vh !important;
+    }
+
+    #hourlySection {
+      padding: 20px;
+      background: #f5f5f5;
+    }
+
+    #hourlyList {
+      max-height: 300px;
+      overflow-y: auto;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="freq">Vibration: 0</div>
+<div id="alert">Status: Normal</div>
+
+<canvas id="chart"></canvas>
+
+<div id="hourlySection">
+  <h3>Hourly Average Tremor Intensity</h3>
+  <div id="hourlyList"></div>
+</div>
+
+<script type="module">
+
+import { initializeApp } from 
+"https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+
+import { getDatabase, ref, onValue } from 
+"https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDeLq5Y7M2KukhKlSFWtFApQFCdw8QP0Dw",
+  databaseURL: "https://realtime-monitroring-default-rtdb.asia-southeast1.firebasedatabase.app"
+};
+
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+
+let latestValue = 0;
+let labels = [];
+let dataPoints = [];
+
+/* Hourly tracking */
+let hourlySum = 0;
+let hourlyCount = 0;
+let currentHour = new Date().getHours();
+
+const ctx = document.getElementById("chart").getContext("2d");
+
+const chart = new Chart(ctx, {
+  type: "line",
+  data: {
+    labels: labels,
+    datasets: [{
+      label: "Frequency",
+      data: dataPoints,
+      borderColor: "blue",
+      fill: false,
+      tension: 0.2
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    scales: {
+      y: {
+        min: 0,
+        max: 10
+      },
+      x: {
+        display: false
+      }
+    }
+  }
+});
+
+/* Firebase listener */
+onValue(ref(database, 'vibration/intensity'), (snapshot) => {
+  const value = snapshot.val();
+  if (value != null) latestValue = value;
+});
+
+/* Update graph + hourly tracking every 200ms */
+setInterval(() => {
+
+  if (latestValue < 0) latestValue = 0;
+
+  document.getElementById("freq").innerHTML =
+    "Frequency: " + latestValue.toFixed(2);
+
+  if (latestValue > 3) {
+    document.getElementById("alert").innerHTML = "🚨 Tremor Detected!";
+    document.getElementById("alert").style.color = "red";
+  } else {
+    document.getElementById("alert").innerHTML = "Normal";
+    document.getElementById("alert").style.color = "green";
+  }
+
+  labels.push("");
+  dataPoints.push(latestValue);
+
+  if (labels.length > 100) {
+    labels.shift();
+    dataPoints.shift();
+  }
+
+  chart.update();
+
+  /* ---- Hourly Average Calculation ---- */
+
+  let now = new Date();
+  let hour = now.getHours();
+
+  hourlySum += latestValue;
+  hourlyCount++;
+
+  if (hour !== currentHour) {
+    let average = (hourlySum / hourlyCount).toFixed(3);
+
+    let entry = document.createElement("div");
+    entry.innerHTML = 
+      "Hour " + currentHour + ": Avg Tremor = " + average;
+
+    document.getElementById("hourlyList").prepend(entry);
+
+    // Reset for new hour
+    currentHour = hour;
+    hourlySum = 0;
+    hourlyCount = 0;
+  }
+
+}, 200);
+
+</script>
+
+</body>
+</html>
