@@ -13,59 +13,16 @@
       font-family: Arial, sans-serif;
     }
 
-    #freq {
-      position: absolute;
-      top: 15px;
-      left: 20px;
-      font-size: 22px;
-      font-weight: bold;
-      background: rgba(255,255,255,0.8);
-      padding: 8px 15px;
-      border-radius: 8px;
-    }
-
-    #alert {
-      position: absolute;
-      top: 60px;
-      left: 20px;
-      font-size: 20px;
-      font-weight: bold;
-      background: rgba(255,255,255,0.8);
-      padding: 8px 15px;
-      border-radius: 8px;
-    }
-
     canvas {
       width: 100vw !important;
-      height: 80vh !important;
-    }
-
-    #hourlySection {
-      padding: 20px;
-      background: #f5f5f5;
-    }
-
-    #hourlyList {
-      max-height: 300px;
-      overflow-y: auto;
-      background: white;
-      padding: 10px;
-      border-radius: 8px;
+      height: 90vh !important;
     }
   </style>
 </head>
 
 <body>
 
-<div id="freq">Vibration: 0</div>
-<div id="alert">Status: Normal</div>
-
 <canvas id="chart"></canvas>
-
-<div id="hourlySection">
-  <h3>Hourly Average Tremor Intensity</h3>
-  <div id="hourlyList"></div>
-</div>
 
 <script type="module">
 
@@ -83,14 +40,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
-let latestValue = 0;
+let latestWave = 0;
 let labels = [];
 let dataPoints = [];
-
-/* Hourly tracking */
-let hourlySum = 0;
-let hourlyCount = 0;
-let currentHour = new Date().getHours();
 
 const ctx = document.getElementById("chart").getContext("2d");
 
@@ -99,11 +51,12 @@ const chart = new Chart(ctx, {
   data: {
     labels: labels,
     datasets: [{
-      label: "Frequency",
+      label: "Tremor Wave",
       data: dataPoints,
       borderColor: "blue",
       fill: false,
-      tension: 0.2
+      tension: 0.4,      // smooth curve
+      pointRadius: 0
     }]
   },
   options: {
@@ -113,74 +66,41 @@ const chart = new Chart(ctx, {
     scales: {
       y: {
         min: 0,
-        max: 10
+        max: 0.5   // adjust if wave looks small
       },
       x: {
-        display: false
+        ticks: {
+          autoSkip: true,
+          maxTicksLimit: 8
+        }
       }
     }
   }
 });
 
-/* ---- Live Tremor Listener ---- */
-
-onValue(ref(database, 'vibration/intensity'), (snapshot) => {
+/* Firebase listener */
+onValue(ref(database, 'vibration/wave'), (snapshot) => {
   const value = snapshot.val();
-  if (value != null) latestValue = value;
+  if (value != null) latestWave = value;
 });
 
-/* ---- Stored Hourly Data Listener ---- */
-
-onValue(ref(database, 'hourly'), (snapshot) => {
-
-  const data = snapshot.val();
-  if (!data) return;
-
-  const hourlyDiv = document.getElementById("hourlyList");
-  hourlyDiv.innerHTML = "";
-
-  Object.keys(data)
-    .sort()
-    .reverse()
-    .forEach(key => {
-
-      const value = data[key];
-
-      const entry = document.createElement("div");
-      entry.innerHTML = key + " → Avg Tremor: " + value.toFixed(3);
-
-      hourlyDiv.appendChild(entry);
-    });
-});
-
-/* ---- Graph Update Every 200ms ---- */
-
+/* Smooth time-based update */
 setInterval(() => {
 
-  if (latestValue < 0) latestValue = 0;
+  const now = new Date();
+  const timeLabel = now.toLocaleTimeString();
 
-  document.getElementById("freq").innerHTML =
-    "Vibration: " + latestValue.toFixed(2);
+  labels.push(timeLabel);
+  dataPoints.push(latestWave);
 
-  if (latestValue > 0.7) {
-    document.getElementById("alert").innerHTML = "🚨 Strong Tremor Detected!";
-    document.getElementById("alert").style.color = "red";
-  } else {
-    document.getElementById("alert").innerHTML = "Status: Normal";
-    document.getElementById("alert").style.color = "green";
-  }
-
-  labels.push("");
-  dataPoints.push(latestValue);
-
-  if (labels.length > 100) {
+  if (labels.length > 150) {
     labels.shift();
     dataPoints.shift();
   }
 
   chart.update();
 
-}, 200);
+}, 50);   // smooth scrolling
 
 </script>
 
