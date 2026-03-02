@@ -88,7 +88,7 @@ const chart = new Chart(ctx, {
     scales: {
       y: {
         min: 0,
-        max: 10
+        max: 15
       },
       x: {
         display: false
@@ -98,7 +98,7 @@ const chart = new Chart(ctx, {
 });
 
 /* Firebase Listener */
-onValue(ref(database, 'vibration/intensity'), (snapshot) => {
+onValue(ref(database, 'vibration/frequency'), (snapshot) => {
   const value = snapshot.val();
   if (value != null) latestValue = value;
 });
@@ -108,9 +108,8 @@ setInterval(() => {
 
   if (latestValue < 0) latestValue = 0;
 
-  document.getElementById("freq").innerHTML =
-    "Frequency : " + latestValue.toFixed(2);
-
+ document.getElementById("freq").innerHTML =
+  "Tremor Frequency : " + latestValue.toFixed(2) + " Hz";
   if (latestValue > 2.5) {
     document.getElementById("alert").innerHTML = "🚨 TREMOR DETECTED!";
     document.getElementById("alert").style.color = "red";
@@ -135,3 +134,4 @@ setInterval(() => {
 
 </body>
 </html>
+
