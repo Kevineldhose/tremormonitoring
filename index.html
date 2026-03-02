@@ -73,13 +73,12 @@ const chart = new Chart(ctx, {
   data: {
     labels: labels,
     datasets: [{
-      label: "Tremor Wave",
+      label: "Frequency",
       data: vibrationData,
       borderColor: "lime",
       borderWidth: 2,
       fill: false,
-      tension: 0.4,      // smoother wave
-      pointRadius: 0     // remove dots
+      tension: 0.2
     }]
   },
   options: {
@@ -89,13 +88,10 @@ const chart = new Chart(ctx, {
     scales: {
       y: {
         min: 0,
-        max: 10     // adjust if wave too small/big
+        max: 10
       },
       x: {
-        ticks: {
-          color: "white",
-          maxTicksLimit: 8
-        }
+        display: false
       }
     }
   }
@@ -104,16 +100,18 @@ const chart = new Chart(ctx, {
 /* Firebase Listener */
 onValue(ref(database, 'vibration/intensity'), (snapshot) => {
   const value = snapshot.val();
-  if (value != null) latestValue = Math.abs(value);  // ensure no negative
+  if (value != null) latestValue = value;
 });
 
-/* Smooth Graph Update with Time */
+/* Smooth Graph Update */
 setInterval(() => {
 
-  document.getElementById("freq").innerHTML =
-    "Vibration : " + latestValue.toFixed(2);
+  if (latestValue < 0) latestValue = 0;
 
-  if (latestValue > 0.7) {
+  document.getElementById("freq").innerHTML =
+    "Frequency : " + latestValue.toFixed(2);
+
+  if (latestValue > 2.5) {
     document.getElementById("alert").innerHTML = "🚨 TREMOR DETECTED!";
     document.getElementById("alert").style.color = "red";
   } else {
@@ -121,23 +119,19 @@ setInterval(() => {
     document.getElementById("alert").style.color = "lightgreen";
   }
 
-  const now = new Date();
-  const timeLabel = now.toLocaleTimeString();
-
-  labels.push(timeLabel);
+  labels.push("");
   vibrationData.push(latestValue);
 
-  if (labels.length > 150) {
+  if (labels.length > 100) {
     labels.shift();
     vibrationData.shift();
   }
 
   chart.update();
 
-}, 50);   // faster refresh = smoother wave
+}, 100);
 
 </script>
 
 </body>
 </html>
-
